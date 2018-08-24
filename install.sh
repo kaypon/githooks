@@ -21,7 +21,7 @@ BASE_TEMPLATE_CONTENT='#!/bin/sh
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.241831-61bf5e
+# Version: 1808.242307-c2785e
 
 #####################################################
 # Execute the current hook,
@@ -277,13 +277,14 @@ execute_opt_in_checks() {
     CURRENT_HASHES=$(grep "$HOOK_PATH" .git/.githooks.checksum 2>/dev/null)
 
     # check against the previous hash
-    if ! echo "$CURRENT_HASHES" | grep -q "$MD5_HASH $HOOK_PATH" >/dev/null 2>&1; then
+    if echo "$CURRENT_HASHES" | grep -q "disabled> $HOOK_PATH" >/dev/null 2>&1; then
+        echo "* Skipping disabled $HOOK_PATH"
+        echo "  Edit or delete the $(pwd)/.git/.githooks.checksum file to enable it again"
+        return 1
+
+    elif ! echo "$CURRENT_HASHES" | grep -q "$MD5_HASH $HOOK_PATH" >/dev/null 2>&1; then
         if [ -z "$CURRENT_HASHES" ]; then
             MESSAGE="New hook file found"
-        elif echo "$CURRENT_HASHES" | grep -q "disabled> $HOOK_PATH" >/dev/null 2>&1; then
-            echo "* Skipping disabled $HOOK_PATH"
-            echo "  Edit or delete the $(pwd)/.git/.githooks.checksum file to enable it again"
-            return 1
         else
             MESSAGE="Hook file changed"
         fi
