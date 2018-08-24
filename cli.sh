@@ -4,7 +4,7 @@
 #
 # See the documentation in the project README for more information.
 #
-# Version: 1808.241831-82898b
+# Version: 1808.241831-61bf5e
 
 print_help() {
     print_help_header
