@@ -4,7 +4,7 @@ if [ -n "$GITHOOKS_SKIP_UPDATE_VERSION" ]; then
     exit 0
 fi
 
-CHANGES="$(git diff --name-only origin/master..HEAD base-template.sh install.sh)"
+CHANGES="$(git diff --name-only origin/master..HEAD base-template.sh install.sh cli.sh)"
 if [ -z "$CHANGES" ]; then
     # stop here if there are changes for this push
     exit 0
