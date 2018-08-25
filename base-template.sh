@@ -4,7 +4,7 @@
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.242307-c2785e
+# Version: 1808.252248-54e499
 
 #####################################################
 # Execute the current hook,
@@ -610,4 +610,5 @@ print_update_disable_info() {
     echo "    \$ git config ${GLOBAL_CONFIG} githooks.autoupdate.enabled N"
 }
 
+# Start processing the hooks
 process_git_hook "$@" || exit 1

@@ -2,10 +2,19 @@
 #
 # Command line helper for https://github.com/rycus86/githooks
 #
-# See the documentation in the project README for more information.
+# This tool provides a convenience utility to manage
+#   Githooks configuration, hook files and other
+#   related functionality.
 #
-# Version: 1808.242307-c2785e
+# See the documentation in the project README for more information,
+#   or run the _githooks help_ command for available options.
+#
+# Version: 1808.252248-54e499
 
+#####################################################
+# Prints the command line help for usage and
+#   available commands.
+#####################################################
 print_help() {
     print_help_header
 
@@ -23,12 +32,24 @@ You can also execute _githooks <cmd> help_ for more information on the individua
 "
 }
 
+#####################################################
+# Prints a general header to be included
+#   as the first few lines of every help message.
+#####################################################
 print_help_header() {
     echo
     echo "Githooks - https://github.com/rycus86/githooks"
     echo "----------------------------------------------"
 }
 
+#####################################################
+# Checks if the current directory is
+#   a Git repository or not.
+#
+# Returns:
+#   0 if it is likely a Git repository,
+#   1 otherwise
+#####################################################
 is_running_in_git_repo_root() {
     if ! git status >/dev/null 2>&1; then
         return 1
@@ -37,6 +58,16 @@ is_running_in_git_repo_root() {
     [ -d .git ] || return 1
 }
 
+#####################################################
+# Finds a hook file path based on trigger name,
+#   file name, relative or absolute path, or
+#   some combination of these.
+#
+# Sets the ${HOOK_PATH} environment variable.
+#
+# Returns:
+#   None
+#####################################################
 find_hook_path_to_enable_or_disable() {
     if [ -z "$1" ]; then
         HOOK_PATH=$(cd .githooks && pwd)
@@ -97,6 +128,14 @@ find_hook_path_to_enable_or_disable() {
     fi
 }
 
+#####################################################
+# Disables one or more hook files
+#   in the current repository.
+#
+# Returns:
+#   1 if the current directory is not a Git repo,
+#   0 otherwise
+#####################################################
 disable_hook() {
     if [ "$1" = "help" ]; then
         print_help_header
@@ -131,6 +170,14 @@ githooks disable [trigger]
     done
 }
 
+#####################################################
+# Enables one or more hook files
+#   in the current repository.
+#
+# Returns:
+#   1 if the current directory is not a Git repo,
+#   0 otherwise
+#####################################################
 enable_hook() {
     if [ "$1" = "help" ]; then
         print_help_header
@@ -159,6 +206,14 @@ githooks enable [trigger]
         echo "Hook file(s) enabled at $HOOK_PATH"
 }
 
+#####################################################
+# Lists the hook files in the current
+#   repository along with their current state.
+#
+# Returns:
+#   1 if the current directory is not a Git repo,
+#   0 otherwise
+#####################################################
 list_hooks() {
     if [ "$1" = "help" ]; then
         print_help_header
@@ -213,6 +268,11 @@ githooks list [type]
     done
 }
 
+#####################################################
+# Returns the state of hook file
+#   in a human-readable format
+#   on the standard output.
+#####################################################
 get_hook_state() {
     if is_file_ignored "$1"; then
         echo "ignored"
@@ -267,6 +327,13 @@ is_file_ignored() {
     fi
 }
 
+#####################################################
+# Checks whether the current repository
+#   is trusted, and that this is accepted.
+#
+# Returns:
+#   0 if the repo is trusted, 1 otherwise
+#####################################################
 is_trusted_repo() {
     if [ -f ".githooks/trust-all" ]; then
         TRUST_ALL_CONFIG=$(git config --local --get githooks.trust.all)
@@ -283,6 +350,11 @@ is_trusted_repo() {
     return 1
 }
 
+#####################################################
+# Returns the enabled or disabled state
+#   in human-readable format for a hook file
+#   passed in as the first argument.
+#####################################################
 get_hook_enabled_or_disabled_state() {
     HOOK_PATH="$1"
 
@@ -307,6 +379,12 @@ get_hook_enabled_or_disabled_state() {
     fi
 }
 
+#####################################################
+# Updates the configured shared hook repositories.
+#
+# Returns:
+#   None
+#####################################################
 update_shared_hook_repos() {
     if [ "$1" = "help" ]; then
         print_help_header
@@ -333,6 +411,10 @@ githooks pull
     echo "Finished"
 }
 
+#####################################################
+# Updates the shared hooks repositories
+#   on the list passed in on the first argument.
+#####################################################
 update_shared_hooks_in() {
     SHARED_REPOS_LIST="$1"
 
@@ -369,6 +451,14 @@ update_shared_hooks_in() {
     unset IFS
 }
 
+#####################################################
+# Executes an update check, and potentially
+#   the installation of the latest version.
+#
+# Returns:
+#   1 if the latest version cannot be retrieved,
+#   0 otherwise
+#####################################################
 run_update_check() {
     if [ "$1" = "help" ]; then
         print_help_header
@@ -523,6 +613,14 @@ execute_update() {
     return 1
 }
 
+#####################################################
+# Dispatches the command to the
+#   appropriate helper function to process it.
+#
+# Returns:
+#   1 if an unknown command was given,
+#   the exit code of the command otherwise
+#####################################################
 choose_command() {
     CMD="$1"
     [ -n "$CMD" ] && shift
@@ -555,4 +653,5 @@ choose_command() {
     esac
 }
 
+# Choose and execute the command
 choose_command "$@"

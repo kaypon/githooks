@@ -9,11 +9,15 @@ cat <<EOF | python -
 import re
 
 TEMPLATE_PATTERN="(.+)(BASE_TEMPLATE_CONTENT='[^']+')(.+)"
+CLI_TOOL_PATTERN="(.+)(CLI_TOOL_CONTENT='[^']+')(.+)"
 README_PATTERN="(.+)(INCLUDED_README_CONTENT='[^']+')(.+)"
 
 if __name__ == '__main__':
     with open('base-template.sh', 'r') as template_file:
         template_contents = template_file.read()
+    
+    with open('cli.sh', 'r') as cli_tool_file:
+        cli_tool_contents = cli_tool_file.read()
     
     with open('.githooks/README.md', 'r') as readme_file:
         readme_contents = readme_file.read()
@@ -28,6 +32,13 @@ if __name__ == '__main__':
 
     contents = "%sBASE_TEMPLATE_CONTENT='%s'%s" % (
         before, template_contents, after
+    )
+
+    match = re.match(CLI_TOOL_PATTERN, contents, flags=re.MULTILINE | re.DOTALL)
+    before, template, after = match.groups()
+
+    contents = "%sCLI_TOOL_CONTENT='%s'%s" % (
+        before, cli_tool_contents, after
     )
 
     match = re.match(README_PATTERN, contents, flags=re.MULTILINE | re.DOTALL)

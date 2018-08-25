@@ -147,6 +147,10 @@ $ sh -c "$(curl -fsSL https://raw.githubusercontent.com/rycus86/githooks/master/
 
 The GitHub URL also accepts the additional parameters mentioned above, the `https://r.viktoradam.net/githooks` URL is just a redirect to the longer GitHub address.
 
+### Command line helper
+
+> TODO section about the githooks cli tool
+
 ### Required tools
 
 Although most systems will usually have these tools (especially if you're using Git), I should mention that the project assumes the following programs to be available:
