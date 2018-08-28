@@ -5,11 +5,13 @@
 # This tool provides a convenience utility to manage
 #   Githooks configuration, hook files and other
 #   related functionality.
+# This script should be an alias for `git hooks`, done by
+#   git config --global alias.hooks "!${SCRIPT_DIR}/githooks"
 #
 # See the documentation in the project README for more information,
-#   or run the _githooks help_ command for available options.
+#   or run the `git hooks help` command for available options.
 #
-# Version: 1808.252248-54e499
+# Version: 1808.281829-45d031
 
 #####################################################
 # Prints the command line help for usage and
@@ -23,12 +25,14 @@ Available commands:
 
     disable     Disables a hook in the current repository
     enable      Enables a previously disabled hook in the current repository
+    accept      Accept the pending changes of a new or modified hook
     list        Lists the active hooks in the current repository
     pull        Updates the shared repositories
     update      Performs an update check
     help        Prints this help message
+    version     Prints the version number of this script
 
-You can also execute _githooks <cmd> help_ for more information on the individual commands.
+You can also execute \`git hooks <cmd> help\` for more information on the individual commands.
 "
 }
 
@@ -140,13 +144,13 @@ disable_hook() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks disable [trigger] [hook-script]
-githooks disable [hook-script]
-githooks disable [trigger]
+git hooks disable [trigger] [hook-script]
+git hooks disable [hook-script]
+git hooks disable [trigger]
 
     Disables a hook in the current repository.
-    The _trigger_ parameter should be the name of the Git event if given.
-    The _hook-script_ can be the name of the file to disable, or its
+    The \`trigger\` parameter should be the name of the Git event if given.
+    The \`hook-script\` can be the name of the file to disable, or its
     relative path, or an absolute path, we will try to find it.
 "
         return
@@ -182,13 +186,13 @@ enable_hook() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks enable [trigger] [hook-script]
-githooks enable [hook-script]
-githooks enable [trigger]
+git hooks enable [trigger] [hook-script]
+git hooks enable [hook-script]
+git hooks enable [trigger]
 
     Enables a hook or hooks in the current repository.
-    The _trigger_ parameter should be the name of the Git event if given.
-    The _hook-script_ can be the name of the file to enable, or its
+    The \`trigger\` parameter should be the name of the Git event if given.
+    The \`hook-script\` can be the name of the file to enable, or its
     relative path, or an absolute path, we will try to find it.
 "
         return
@@ -207,6 +211,63 @@ githooks enable [trigger]
 }
 
 #####################################################
+# Accept changes to a new or existing but changed
+#   hook file by recording its checksum as accepted.
+#
+# Returns:
+#   1 if the current directory is not a Git repo,
+#   0 otherwise
+#####################################################
+accept_changes() {
+    if [ "$1" = "help" ]; then
+        print_help_header
+        echo "
+git hooks accept [trigger] [hook-script]
+git hooks accept [hook-script]
+git hooks accept [trigger]
+
+    Accepts a new hook or changes to an existing hooks.
+    The \`trigger\` parameter should be the name of the Git event if given.
+    The \`hook-script\` can be the name of the file to enable, or its
+    relative path, or an absolute path, we will try to find it.
+"
+        return
+    fi
+
+    if ! is_running_in_git_repo_root; then
+        echo "The current directory ($(pwd)) does not seem to be the root of a Git repository!"
+        exit 1
+    fi
+
+    find_hook_path_to_enable_or_disable "$@"
+
+    for HOOK_FILE in $(find "$HOOK_PATH" -type f | grep "/.githooks/"); do
+        if grep -q "disabled> $HOOK_FILE" .git/.githooks.checksum; then
+            echo "Hook file is currently disabled at $HOOK_FILE"
+            continue
+        fi
+
+        CHECKSUM=$(get_hook_checksum "$HOOK_FILE")
+
+        echo "$CHECKSUM $HOOK_FILE" >>.git/.githooks.checksum &&
+            echo "Changes accepted for $HOOK_FILE"
+    done
+}
+
+#####################################################
+# Returns the MD5 checksum of the hook file
+#   passed in as the first argument.
+#####################################################
+get_hook_checksum() {
+    # get hash of the hook contents
+    if ! MD5_HASH=$(md5 -r "$1" 2>/dev/null); then
+        MD5_HASH=$(md5sum "$1" 2>/dev/null)
+    fi
+    
+    echo "$MD5_HASH" | awk "{ print \$1 }"
+}
+
+#####################################################
 # Lists the hook files in the current
 #   repository along with their current state.
 #
@@ -218,10 +279,10 @@ list_hooks() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks list [type]
+git hooks list [type]
 
     Lists the active hooks in the current repository along with their state.
-    If _type_ is given, then it only lists the hooks for that trigger event.
+    If \`type\` is given, then it only lists the hooks for that trigger event.
     This command needs to be run at the root of a repository.
 "
         return
@@ -245,20 +306,104 @@ githooks list [type]
     fi
 
     for LIST_TYPE in $LIST_TYPES; do
+        LIST_OUTPUT=""
+
+        # non-Githooks hook file
+        if [ -x ".git/hooks/${LIST_TYPE}.replaced.githook" ]; then
+            ITEM_STATE=$(get_hook_state "$(pwd)/.git/hooks/${LIST_TYPE}.replaced.githook")
+
+            # echo "* $LIST_TYPE"
+            # echo "  Pre-existing hook (${ITEM_STATE})"
+            LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (previous / file / ${ITEM_STATE})"
+        fi
+
+        # global shared hooks
+        SHARED_HEADER_PRINT=''
+        SHARED_REPOS_LIST=$(git config --global --get githooks.shared)
+        for SHARED_ITEM in $(list_hooks_in_shared_repos "$LIST_TYPE"); do
+            if [ -z "$SHARED_HEADER_PRINT" ]; then
+                # echo "~ $LIST_TYPE ~ global shared"
+                SHARED_HEADER_PRINT=1
+            fi
+
+            if [ -d "$SHARED_ITEM" ]; then
+                for LIST_ITEM in "$SHARED_ITEM"/*; do
+                    ITEM_NAME=$(basename "$LIST_ITEM")
+                    ITEM_STATE=$(get_hook_state "$LIST_ITEM")
+
+                    # echo "  - $ITEM_NAME (${ITEM_STATE})"
+                    LIST_OUTPUT="$LIST_OUTPUT
+  - $ITEM_NAME (${ITEM_STATE} / shared:global)"
+                done
+
+            elif [ -f "$SHARED_ITEM" ]; then
+                ITEM_STATE=$(get_hook_state "$SHARED_ITEM")
+
+                # echo "  File found (${ITEM_STATE})"
+                LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (file / ${ITEM_STATE} / shared:global)"
+            fi
+        done
+
+        # local shared hooks
+        if [ -f "$(pwd)/.githooks/.shared" ]; then
+            SHARED_HEADER_PRINT=''
+            SHARED_REPOS_LIST=$(grep -E "^[^#].+$" <"$(pwd)/.githooks/.shared")
+            for SHARED_ITEM in $(list_hooks_in_shared_repos "$LIST_TYPE"); do
+                if [ -z "$SHARED_HEADER_PRINT" ]; then
+                    # echo "~ $LIST_TYPE ~ local shared"
+                    SHARED_HEADER_PRINT=1
+                fi
+
+                if [ -d "$SHARED_ITEM" ]; then
+                    for LIST_ITEM in "$SHARED_ITEM"/*; do
+                        ITEM_NAME=$(basename "$LIST_ITEM")
+                        ITEM_STATE=$(get_hook_state "$LIST_ITEM")
+
+                        # echo "  - $ITEM_NAME (${ITEM_STATE})"
+                        LIST_OUTPUT="$LIST_OUTPUT
+  - $ITEM_NAME (${ITEM_STATE} / shared:local)"
+                    done
+
+                elif [ -f "$SHARED_ITEM" ]; then
+                    ITEM_STATE=$(get_hook_state "$SHARED_ITEM")
+
+                    # echo "  File found (${ITEM_STATE})"
+                    LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (file / ${ITEM_STATE} / shared:local)"
+                fi
+            done
+        fi
+
+        # in the current repository
         if [ -d ".githooks/$LIST_TYPE" ]; then
-            echo "> $LIST_TYPE"
+            # echo "> $LIST_TYPE"
             for LIST_ITEM in .githooks/"$LIST_TYPE"/*; do
                 ITEM_NAME=$(basename "$LIST_ITEM")
                 ITEM_STATE=$(get_hook_state "$(pwd)/.githooks/$LIST_TYPE/$ITEM_NAME")
 
-                echo "  - $ITEM_NAME (${ITEM_STATE})"
+                # echo "  - $ITEM_NAME (${ITEM_STATE})"
+                LIST_OUTPUT="$LIST_OUTPUT
+  - $ITEM_NAME (${ITEM_STATE})"
             done
 
         elif [ -f ".githooks/$LIST_TYPE" ]; then
             ITEM_STATE=$(get_hook_state "$(pwd)/.githooks/$LIST_TYPE")
 
-            echo "> $LIST_TYPE"
-            echo "  File found (${ITEM_STATE})"
+            # echo "> $LIST_TYPE"
+            # echo "  File found (${ITEM_STATE})"
+            LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (file / ${ITEM_STATE})"
+
+        # elif [ -n "$WARN_NOT_FOUND" ]; then
+            # echo "> $LIST_TYPE"
+            # echo "  No active hooks found"
+
+        fi
+
+        if [ -n "$LIST_OUTPUT" ]; then
+            echo "> ${LIST_TYPE}${LIST_OUTPUT}"
 
         elif [ -n "$WARN_NOT_FOUND" ]; then
             echo "> $LIST_TYPE"
@@ -380,6 +525,31 @@ get_hook_enabled_or_disabled_state() {
 }
 
 #####################################################
+# List the shared hooks from the
+#   ~/.githooks/shared directory.
+#
+# Returns the list of paths to the hook files
+#   in the shared hook repositories found locally.
+#####################################################
+list_hooks_in_shared_repos() {
+    SHARED_LIST_TYPE="$1"
+
+    for SHARED_ROOT in ~/.githooks/shared/*; do
+        REMOTE_URL=$(cd "$SHARED_ROOT" && git config --get remote.origin.url)
+        ACTIVE_REPO=$(echo "$SHARED_REPOS_LIST" | grep -o "$REMOTE_URL")
+        if [ "$ACTIVE_REPO" != "$REMOTE_URL" ]; then
+            continue
+        fi
+
+        if [ -e "${SHARED_ROOT}/.githooks/${SHARED_LIST_TYPE}" ]; then
+            echo "${SHARED_ROOT}/.githooks/${SHARED_LIST_TYPE}"
+        elif [ -e "${SHARED_ROOT}/${LIST_TYPE}" ]; then
+            echo "${SHARED_ROOT}/${LIST_TYPE}"
+        fi
+    done
+}
+
+#####################################################
 # Updates the configured shared hook repositories.
 #
 # Returns:
@@ -389,11 +559,11 @@ update_shared_hook_repos() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks pull
+git hooks pull
 
     Updates the shared repositories found either
     in the global Git configuration, or in the
-    _.githooks/.shared_ file in the local repository.
+    \`.githooks/.shared\` file in the local repository.
 "
         return
     fi
@@ -463,10 +633,10 @@ run_update_check() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks update [force]
+git hooks update [force]
 
     Executes an update check for a newer Githooks version.
-    If it finds one, or if _force_ was given, the downloaded
+    If it finds one, or if \`force\` was given, the downloaded
     install script is executed for the latest version.
 "
         return
@@ -614,6 +784,21 @@ execute_update() {
 }
 
 #####################################################
+# Prints the version number of this script,
+#   that would match the latest installed version
+#   of Githooks in most cases.
+#####################################################
+print_current_version_number() {
+    CURRENT_VERSION=$(grep "^# Version: .*" "$0" | sed "s/^# Version: //")
+
+    print_help_header
+
+    echo
+    echo "Version: $CURRENT_VERSION"
+    echo
+}
+
+#####################################################
 # Dispatches the command to the
 #   appropriate helper function to process it.
 #
@@ -632,6 +817,9 @@ choose_command() {
     "enable")
         enable_hook "$@"
         ;;
+    "accept")
+        accept_changes "$@"
+        ;;
     "list")
         list_hooks "$@"
         ;;
@@ -644,6 +832,9 @@ choose_command() {
     "help")
         print_help
         exit 0
+        ;;
+    "version")
+        print_current_version_number
         ;;
     *)
         [ -n "$CMD" ] && echo "Unknown command: $CMD"

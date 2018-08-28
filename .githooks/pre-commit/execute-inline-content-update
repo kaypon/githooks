@@ -1,6 +1,6 @@
 #!/bin/sh
 if ! python --version 2>/dev/null; then
-    echo "_ Skipping automatic template and README update: Python is not available"
+    echo "_ Skipping automatic inline content update: Python is not available"
     exit 0
 fi
 
@@ -54,5 +54,5 @@ EOF
 
 # shellcheck disable=SC2181
 if [ $? -eq 0 ]; then
-    echo "* Base template and README updated in the install script"
+    echo "* Inline content is updated in the install script"
 fi

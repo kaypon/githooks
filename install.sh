@@ -21,7 +21,7 @@ BASE_TEMPLATE_CONTENT='#!/bin/sh
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.252248-54e499
+# Version: 1808.281829-45d031
 
 #####################################################
 # Execute the current hook,
@@ -369,15 +369,15 @@ update_shared_hooks_if_appropriate() {
         "
 
         for SHARED_REPO in $SHARED_REPOS_LIST; do
-            mkdir -p ~/.githooks.shared
+            mkdir -p ~/.githooks/shared
 
             NORMALIZED_NAME=$(echo "$SHARED_REPO" |
                 sed -E "s#.*[:/](.+/.+)\\.git#\\1#" |
                 sed -E "s/[^a-zA-Z0-9]/_/g")
 
-            if [ -d ~/.githooks.shared/"$NORMALIZED_NAME"/.git ]; then
+            if [ -d ~/.githooks/shared/"$NORMALIZED_NAME"/.git ]; then
                 echo "* Updating shared hooks from: $SHARED_REPO"
-                PULL_OUTPUT=$(cd ~/.githooks.shared/"$NORMALIZED_NAME" && git pull 2>&1)
+                PULL_OUTPUT=$(cd ~/.githooks/shared/"$NORMALIZED_NAME" && git pull 2>&1)
                 # shellcheck disable=SC2181
                 if [ $? -ne 0 ]; then
                     echo "! Update failed, git pull output:"
@@ -385,7 +385,7 @@ update_shared_hooks_if_appropriate() {
                 fi
             else
                 echo "* Retrieving shared hooks from: $SHARED_REPO"
-                CLONE_OUTPUT=$(cd ~/.githooks.shared && git clone "$SHARED_REPO" "$NORMALIZED_NAME" 2>&1)
+                CLONE_OUTPUT=$(cd ~/.githooks/shared && git clone "$SHARED_REPO" "$NORMALIZED_NAME" 2>&1)
                 # shellcheck disable=SC2181
                 if [ $? -ne 0 ]; then
                     echo "! Clone failed, git clone output:"
@@ -400,13 +400,13 @@ update_shared_hooks_if_appropriate() {
 
 #####################################################
 # Execute the shared hooks in the
-#   ~/.githooks.shared directory.
+#   ~/.githooks/shared directory.
 #
 # Returns:
 #   1 in case a hook fails, 0 otherwise
 #####################################################
 execute_shared_hooks() {
-    for SHARED_ROOT in ~/.githooks.shared/*; do
+    for SHARED_ROOT in ~/.githooks/shared/*; do
         REMOTE_URL=$(cd "$SHARED_ROOT" && git config --get remote.origin.url)
         ACTIVE_REPO=$(echo "$SHARED_REPOS_LIST" | grep -o "$REMOTE_URL")
         if [ "$ACTIVE_REPO" != "$REMOTE_URL" ]; then
@@ -640,11 +640,13 @@ CLI_TOOL_CONTENT='#!/bin/sh
 # This tool provides a convenience utility to manage
 #   Githooks configuration, hook files and other
 #   related functionality.
+# This script should be an alias for `git hooks`, done by
+#   git config --global alias.hooks "!${SCRIPT_DIR}/githooks"
 #
 # See the documentation in the project README for more information,
-#   or run the _githooks help_ command for available options.
+#   or run the `git hooks help` command for available options.
 #
-# Version: 1808.252248-54e499
+# Version: 1808.281829-45d031
 
 #####################################################
 # Prints the command line help for usage and
@@ -658,12 +660,14 @@ Available commands:
 
     disable     Disables a hook in the current repository
     enable      Enables a previously disabled hook in the current repository
+    accept      Accept the pending changes of a new or modified hook
     list        Lists the active hooks in the current repository
     pull        Updates the shared repositories
     update      Performs an update check
     help        Prints this help message
+    version     Prints the version number of this script
 
-You can also execute _githooks <cmd> help_ for more information on the individual commands.
+You can also execute \`git hooks <cmd> help\` for more information on the individual commands.
 "
 }
 
@@ -775,13 +779,13 @@ disable_hook() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks disable [trigger] [hook-script]
-githooks disable [hook-script]
-githooks disable [trigger]
+git hooks disable [trigger] [hook-script]
+git hooks disable [hook-script]
+git hooks disable [trigger]
 
     Disables a hook in the current repository.
-    The _trigger_ parameter should be the name of the Git event if given.
-    The _hook-script_ can be the name of the file to disable, or its
+    The \`trigger\` parameter should be the name of the Git event if given.
+    The \`hook-script\` can be the name of the file to disable, or its
     relative path, or an absolute path, we will try to find it.
 "
         return
@@ -817,13 +821,13 @@ enable_hook() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks enable [trigger] [hook-script]
-githooks enable [hook-script]
-githooks enable [trigger]
+git hooks enable [trigger] [hook-script]
+git hooks enable [hook-script]
+git hooks enable [trigger]
 
     Enables a hook or hooks in the current repository.
-    The _trigger_ parameter should be the name of the Git event if given.
-    The _hook-script_ can be the name of the file to enable, or its
+    The \`trigger\` parameter should be the name of the Git event if given.
+    The \`hook-script\` can be the name of the file to enable, or its
     relative path, or an absolute path, we will try to find it.
 "
         return
@@ -842,6 +846,63 @@ githooks enable [trigger]
 }
 
 #####################################################
+# Accept changes to a new or existing but changed
+#   hook file by recording its checksum as accepted.
+#
+# Returns:
+#   1 if the current directory is not a Git repo,
+#   0 otherwise
+#####################################################
+accept_changes() {
+    if [ "$1" = "help" ]; then
+        print_help_header
+        echo "
+git hooks accept [trigger] [hook-script]
+git hooks accept [hook-script]
+git hooks accept [trigger]
+
+    Accepts a new hook or changes to an existing hooks.
+    The \`trigger\` parameter should be the name of the Git event if given.
+    The \`hook-script\` can be the name of the file to enable, or its
+    relative path, or an absolute path, we will try to find it.
+"
+        return
+    fi
+
+    if ! is_running_in_git_repo_root; then
+        echo "The current directory ($(pwd)) does not seem to be the root of a Git repository!"
+        exit 1
+    fi
+
+    find_hook_path_to_enable_or_disable "$@"
+
+    for HOOK_FILE in $(find "$HOOK_PATH" -type f | grep "/.githooks/"); do
+        if grep -q "disabled> $HOOK_FILE" .git/.githooks.checksum; then
+            echo "Hook file is currently disabled at $HOOK_FILE"
+            continue
+        fi
+
+        CHECKSUM=$(get_hook_checksum "$HOOK_FILE")
+
+        echo "$CHECKSUM $HOOK_FILE" >>.git/.githooks.checksum &&
+            echo "Changes accepted for $HOOK_FILE"
+    done
+}
+
+#####################################################
+# Returns the MD5 checksum of the hook file
+#   passed in as the first argument.
+#####################################################
+get_hook_checksum() {
+    # get hash of the hook contents
+    if ! MD5_HASH=$(md5 -r "$1" 2>/dev/null); then
+        MD5_HASH=$(md5sum "$1" 2>/dev/null)
+    fi
+    
+    echo "$MD5_HASH" | awk "{ print \$1 }"
+}
+
+#####################################################
 # Lists the hook files in the current
 #   repository along with their current state.
 #
@@ -853,10 +914,10 @@ list_hooks() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks list [type]
+git hooks list [type]
 
     Lists the active hooks in the current repository along with their state.
-    If _type_ is given, then it only lists the hooks for that trigger event.
+    If \`type\` is given, then it only lists the hooks for that trigger event.
     This command needs to be run at the root of a repository.
 "
         return
@@ -1024,11 +1085,11 @@ update_shared_hook_repos() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks pull
+git hooks pull
 
     Updates the shared repositories found either
     in the global Git configuration, or in the
-    _.githooks/.shared_ file in the local repository.
+    \`.githooks/.shared\` file in the local repository.
 "
         return
     fi
@@ -1098,10 +1159,10 @@ run_update_check() {
     if [ "$1" = "help" ]; then
         print_help_header
         echo "
-githooks update [force]
+git hooks update [force]
 
     Executes an update check for a newer Githooks version.
-    If it finds one, or if _force_ was given, the downloaded
+    If it finds one, or if \`force\` was given, the downloaded
     install script is executed for the latest version.
 "
         return
@@ -1249,6 +1310,20 @@ execute_update() {
 }
 
 #####################################################
+# Prints the version number of this script,
+#   that would match the latest installed version
+#   of Githooks in most cases.
+#####################################################
+print_current_version_number() {
+    CURRENT_VERSION=$(grep "^# Version: .*" "$0" | sed "s/^# Version: //")
+
+    print_help_header
+
+    echo
+    echo "Version: $CURRENT_VERSION"
+}
+
+#####################################################
 # Dispatches the command to the
 #   appropriate helper function to process it.
 #
@@ -1267,6 +1342,9 @@ choose_command() {
     "enable")
         enable_hook "$@"
         ;;
+    "accept")
+        accept_changes "$@"
+        ;;
     "list")
         list_hooks "$@"
         ;;
@@ -1279,6 +1357,9 @@ choose_command() {
     "help")
         print_help
         exit 0
+        ;;
+    "version")
+        print_current_version_number
         ;;
     *)
         [ -n "$CMD" ] && echo "Unknown command: $CMD"
@@ -1644,7 +1725,7 @@ search_pre_commit_sample_file() {
 ############################################################
 setup_new_templates_folder() {
     # shellcheck disable=SC2088
-    DEFAULT_TARGET="~/.git-templates"
+    DEFAULT_TARGET="~/.githooks/templates"
     printf "Enter the target folder: [%s] " "$DEFAULT_TARGET"
     read -r USER_TEMPLATES
 
@@ -1709,79 +1790,22 @@ setup_hook_templates() {
 }
 
 ############################################################
-# Offer to install the command line helper tool
-#   at a location present on the PATH environment variable.
+# Installs the command line helper tool at 
+#   ~/.githooks/bin/githooks and adds a Git alias for it.
 #
 # Returns:
 #   None
 ############################################################
 install_command_line_tool() {
-    printf "Would you like to install a command line helper tool to manage configuration, hook files and other related functionality? [Y/n] "
-    read -r DO_INSTALL_CLI_TOOL
+    mkdir -p "$HOME/.githooks/bin" &&
+        echo "$CLI_TOOL_CONTENT" >"$HOME/.githooks/bin/githooks" &&
+        chmod +x "$HOME/.githooks/bin/githooks" &&
+        git config --global alias.hooks '!~/.githooks/bin/githooks' &&
+        echo "The command line helper tool is installed at ${HOME}/.githooks/bin/githooks, and it is now available as 'git hooks <cmd>'" &&
+        return
 
-    if [ -z "$DO_INSTALL_CLI_TOOL" ] || [ "$DO_INSTALL_CLI_TOOL" = "y" ] || [ "$DO_INSTALL_CLI_TOOL" = "Y" ]; then
-        CLI_TARGET_DIR=$(find_cli_install_dir)
-
-        if [ -n "$CLI_TARGET_DIR" ]; then
-            echo "$CLI_TOOL_CONTENT" >"${CLI_TARGET_DIR}/githooks" &&
-                chmod +x "${CLI_TARGET_DIR}/githooks" &&
-                echo "Installed at ${CLI_TARGET_DIR}/githooks" &&
-                return
-        fi
-
-        echo "Could not find a writable folder for the script, but we could try to set one up at $HOME/.githooks-cli"
-        printf "Would you like to do that? [Y/n] "
-        read -r DO_CUSTOM_CLI_FOLDER
-
-        if [ -z "$DO_CUSTOM_CLI_FOLDER" ] || [ "$DO_CUSTOM_CLI_FOLDER" = "y" ] || [ "$DO_CUSTOM_CLI_FOLDER" = "Y" ]; then
-            mkdir -p "$HOME/.githooks-cli" &&
-                echo "$CLI_TOOL_CONTENT" >"$HOME/.githooks-cli/githooks" &&
-                chmod +x "$HOME/.githooks-cli/githooks"
-
-            if [ -x "$HOME/.githooks-cli/githooks" ]; then
-                echo "The 'githooks' command is installed at $HOME/.githooks-cli/githooks"
-
-                if [ -f "$HOME/.profile" ]; then
-                    printf "Would you like to add this folder to the PATH in your ~/.profile script? [Y/n] "
-                    read -r ADD_TO_PROFILE
-
-                    if [ -z "$ADD_TO_PROFILE" ] || [ "$ADD_TO_PROFILE" = "y" ] || [ "$ADD_TO_PROFILE" = "Y" ]; then
-                        # shellcheck disable=SC2016
-                        echo 'PATH="$PATH:$HOME/.githooks-cli"' >>"$HOME/.profile" &&
-                            echo "Note: you'll need to restart your terminal session or 'source ~/.profile' to apply the change to PATH" &&
-                            return
-                    fi
-                fi
-
-                echo "Make sure to add '\$HOME/.githooks-cli' to your PATH environment variable."
-
-                return
-            fi
-        fi
-
-        echo "Failed to setup the command line helper automatically. If you'd like to do it manually, install the 'cli.sh' file from the repository into a folder on your PATH environment variable, and make it executable."
-        echo "Direct link to the script: https://raw.githubusercontent.com/rycus86/githooks/master/cli.sh"
-    fi
-}
-
-############################################################
-# Finds and returns a directory present on the PATH,
-#   that the current user has write access to.
-#
-# Returns:
-#   None, but outputs the path to the directory when found
-############################################################
-find_cli_install_dir() {
-    IFS=':'
-
-    for WRITABLE_DIR in $PATH; do
-        if [ -w "$WRITABLE_DIR" ]; then
-            echo "$WRITABLE_DIR"
-            break
-        fi
-    done
-
-    unset IFS
+    echo "Failed to setup the command line helper automatically. If you'd like to do it manually, install the 'cli.sh' file from the repository into a folder on your PATH environment variable, and make it executable."
+    echo "Direct link to the script: https://raw.githubusercontent.com/rycus86/githooks/master/cli.sh"
 }
 
 ############################################################

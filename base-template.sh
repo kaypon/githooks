@@ -4,7 +4,7 @@
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.252248-54e499
+# Version: 1808.281829-45d031
 
 #####################################################
 # Execute the current hook,
@@ -352,15 +352,15 @@ update_shared_hooks_if_appropriate() {
         "
 
         for SHARED_REPO in $SHARED_REPOS_LIST; do
-            mkdir -p ~/.githooks.shared
+            mkdir -p ~/.githooks/shared
 
             NORMALIZED_NAME=$(echo "$SHARED_REPO" |
                 sed -E "s#.*[:/](.+/.+)\\.git#\\1#" |
                 sed -E "s/[^a-zA-Z0-9]/_/g")
 
-            if [ -d ~/.githooks.shared/"$NORMALIZED_NAME"/.git ]; then
+            if [ -d ~/.githooks/shared/"$NORMALIZED_NAME"/.git ]; then
                 echo "* Updating shared hooks from: $SHARED_REPO"
-                PULL_OUTPUT=$(cd ~/.githooks.shared/"$NORMALIZED_NAME" && git pull 2>&1)
+                PULL_OUTPUT=$(cd ~/.githooks/shared/"$NORMALIZED_NAME" && git pull 2>&1)
                 # shellcheck disable=SC2181
                 if [ $? -ne 0 ]; then
                     echo "! Update failed, git pull output:"
@@ -368,7 +368,7 @@ update_shared_hooks_if_appropriate() {
                 fi
             else
                 echo "* Retrieving shared hooks from: $SHARED_REPO"
-                CLONE_OUTPUT=$(cd ~/.githooks.shared && git clone "$SHARED_REPO" "$NORMALIZED_NAME" 2>&1)
+                CLONE_OUTPUT=$(cd ~/.githooks/shared && git clone "$SHARED_REPO" "$NORMALIZED_NAME" 2>&1)
                 # shellcheck disable=SC2181
                 if [ $? -ne 0 ]; then
                     echo "! Clone failed, git clone output:"
@@ -383,13 +383,13 @@ update_shared_hooks_if_appropriate() {
 
 #####################################################
 # Execute the shared hooks in the
-#   ~/.githooks.shared directory.
+#   ~/.githooks/shared directory.
 #
 # Returns:
 #   1 in case a hook fails, 0 otherwise
 #####################################################
 execute_shared_hooks() {
-    for SHARED_ROOT in ~/.githooks.shared/*; do
+    for SHARED_ROOT in ~/.githooks/shared/*; do
         REMOTE_URL=$(cd "$SHARED_ROOT" && git config --get remote.origin.url)
         ACTIVE_REPO=$(echo "$SHARED_REPOS_LIST" | grep -o "$REMOTE_URL")
         if [ "$ACTIVE_REPO" != "$REMOTE_URL" ]; then

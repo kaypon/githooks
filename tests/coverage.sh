@@ -10,7 +10,7 @@ fi
 cat <<EOF | docker build --force-rm -t githooks:coverage -f - .
 FROM ragnaroek/kcov:v33
 
-ADD base-template.sh install.sh uninstall.sh .githooks/README.md /var/lib/githooks/
+ADD base-template.sh install.sh uninstall.sh cli.sh .githooks/README.md /var/lib/githooks/
 
 RUN git config --global user.email "githook@test.com" && \
     git config --global user.name "Githook Tests"
