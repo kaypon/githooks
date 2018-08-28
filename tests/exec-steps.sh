@@ -18,7 +18,7 @@ for STEP in /var/lib/tests/step-*.sh; do
 
     mkdir -p /usr/share/git-core/templates/hooks
     rm -rf /usr/share/git-core/templates/hooks/*
-    rm -rf ~/.githooks.shared
+    rm -rf ~/.githooks
     rm -rf /tmp/*
 
     mkdir -p /var/backup/githooks &&

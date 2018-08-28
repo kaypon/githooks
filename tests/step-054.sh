@@ -6,8 +6,8 @@ sh /var/lib/githooks/install.sh || exit 1
 
 mkdir -p /tmp/test054/.githooks/pre-commit &&
     mkdir -p /tmp/test054/.githooks/post-commit &&
-    echo 'echo "Hello"' > /tmp/test054/.githooks/pre-commit/pre-example &&
-    echo 'echo "Hello"' > /tmp/test054/.githooks/post-commit/post-example &&
+    echo 'echo "Hello"' >/tmp/test054/.githooks/pre-commit/pre-example &&
+    echo 'echo "Hello"' >/tmp/test054/.githooks/post-commit/post-example &&
     cd /tmp/test054/ &&
     git init ||
     exit 1

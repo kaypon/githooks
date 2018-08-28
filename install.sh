@@ -21,7 +21,7 @@ BASE_TEMPLATE_CONTENT='#!/bin/sh
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.281829-45d031
+# Version: 1808.282358-9b98ab
 
 #####################################################
 # Execute the current hook,
@@ -646,7 +646,7 @@ CLI_TOOL_CONTENT='#!/bin/sh
 # See the documentation in the project README for more information,
 #   or run the `git hooks help` command for available options.
 #
-# Version: 1808.281829-45d031
+# Version: 1808.282358-9b98ab
 
 #####################################################
 # Prints the command line help for usage and
@@ -725,7 +725,7 @@ find_hook_path_to_enable_or_disable() {
             if [ "$HOOK_NAME" = "." ]; then
                 HOOK_PATH=$(cd "$HOOK_DIR" && pwd)
             else
-                HOOK_PATH=$(cd "$HOOK_DIR" && pwd)/"HOOK_NAME"
+                HOOK_PATH=$(cd "$HOOK_DIR" && pwd)/"$HOOK_NAME"
             fi
 
         elif [ -f ".githooks/$1" ]; then
@@ -767,6 +767,10 @@ find_hook_path_to_enable_or_disable() {
     fi
 }
 
+ensure_checksum_file_exists() {
+    touch .git/.githooks.checksum
+}
+
 #####################################################
 # Disables one or more hook files
 #   in the current repository.
@@ -797,9 +801,10 @@ git hooks disable [trigger]
     fi
 
     find_hook_path_to_enable_or_disable "$@"
+    ensure_checksum_file_exists
 
     for HOOK_FILE in $(find "$HOOK_PATH" -type f | grep "/.githooks/"); do
-        if grep -q "disabled> $HOOK_FILE" .git/.githooks.checksum; then
+        if grep -q "disabled> $HOOK_FILE" .git/.githooks.checksum 2>/dev/null; then
             echo "Hook file is already disabled at $HOOK_FILE"
             continue
         fi
@@ -839,8 +844,9 @@ git hooks enable [trigger]
     fi
 
     find_hook_path_to_enable_or_disable "$@"
+    ensure_checksum_file_exists
 
-    grep -v "disabled> $HOOK_PATH" .git/.githooks.checksum >.git/.githooks.checksum.tmp &&
+    sed "\\|disabled> $HOOK_PATH|d" .git/.githooks.checksum >.git/.githooks.checksum.tmp &&
         mv .git/.githooks.checksum.tmp .git/.githooks.checksum &&
         echo "Hook file(s) enabled at $HOOK_PATH"
 }
@@ -875,6 +881,7 @@ git hooks accept [trigger]
     fi
 
     find_hook_path_to_enable_or_disable "$@"
+    ensure_checksum_file_exists
 
     for HOOK_FILE in $(find "$HOOK_PATH" -type f | grep "/.githooks/"); do
         if grep -q "disabled> $HOOK_FILE" .git/.githooks.checksum; then
@@ -898,7 +905,7 @@ get_hook_checksum() {
     if ! MD5_HASH=$(md5 -r "$1" 2>/dev/null); then
         MD5_HASH=$(md5sum "$1" 2>/dev/null)
     fi
-    
+
     echo "$MD5_HASH" | awk "{ print \$1 }"
 }
 
@@ -941,20 +948,71 @@ git hooks list [type]
     fi
 
     for LIST_TYPE in $LIST_TYPES; do
+        LIST_OUTPUT=""
+
+        # non-Githooks hook file
+        if [ -x ".git/hooks/${LIST_TYPE}.replaced.githook" ]; then
+            ITEM_STATE=$(get_hook_state "$(pwd)/.git/hooks/${LIST_TYPE}.replaced.githook")
+            LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (previous / file / ${ITEM_STATE})"
+        fi
+
+        # global shared hooks
+        SHARED_REPOS_LIST=$(git config --global --get githooks.shared)
+        for SHARED_ITEM in $(list_hooks_in_shared_repos "$LIST_TYPE"); do
+            if [ -d "$SHARED_ITEM" ]; then
+                for LIST_ITEM in "$SHARED_ITEM"/*; do
+                    ITEM_NAME=$(basename "$LIST_ITEM")
+                    ITEM_STATE=$(get_hook_state "$LIST_ITEM")
+                    LIST_OUTPUT="$LIST_OUTPUT
+  - $ITEM_NAME (${ITEM_STATE} / shared:global)"
+                done
+
+            elif [ -f "$SHARED_ITEM" ]; then
+                ITEM_STATE=$(get_hook_state "$SHARED_ITEM")
+                LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (file / ${ITEM_STATE} / shared:global)"
+            fi
+        done
+
+        # local shared hooks
+        if [ -f "$(pwd)/.githooks/.shared" ]; then
+            SHARED_REPOS_LIST=$(grep -E "^[^#].+$" <"$(pwd)/.githooks/.shared")
+            for SHARED_ITEM in $(list_hooks_in_shared_repos "$LIST_TYPE"); do
+                if [ -d "$SHARED_ITEM" ]; then
+                    for LIST_ITEM in "$SHARED_ITEM"/*; do
+                        ITEM_NAME=$(basename "$LIST_ITEM")
+                        ITEM_STATE=$(get_hook_state "$LIST_ITEM")
+                        LIST_OUTPUT="$LIST_OUTPUT
+  - $ITEM_NAME (${ITEM_STATE} / shared:local)"
+                    done
+
+                elif [ -f "$SHARED_ITEM" ]; then
+                    ITEM_STATE=$(get_hook_state "$SHARED_ITEM")
+                    LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (file / ${ITEM_STATE} / shared:local)"
+                fi
+            done
+        fi
+
+        # in the current repository
         if [ -d ".githooks/$LIST_TYPE" ]; then
-            echo "> $LIST_TYPE"
             for LIST_ITEM in .githooks/"$LIST_TYPE"/*; do
                 ITEM_NAME=$(basename "$LIST_ITEM")
                 ITEM_STATE=$(get_hook_state "$(pwd)/.githooks/$LIST_TYPE/$ITEM_NAME")
-
-                echo "  - $ITEM_NAME (${ITEM_STATE})"
+                LIST_OUTPUT="$LIST_OUTPUT
+  - $ITEM_NAME (${ITEM_STATE})"
             done
 
         elif [ -f ".githooks/$LIST_TYPE" ]; then
             ITEM_STATE=$(get_hook_state "$(pwd)/.githooks/$LIST_TYPE")
+            LIST_OUTPUT="$LIST_OUTPUT
+  - $LIST_TYPE (file / ${ITEM_STATE})"
 
-            echo "> $LIST_TYPE"
-            echo "  File found (${ITEM_STATE})"
+        fi
+
+        if [ -n "$LIST_OUTPUT" ]; then
+            echo "> ${LIST_TYPE}${LIST_OUTPUT}"
 
         elif [ -n "$WARN_NOT_FOUND" ]; then
             echo "> $LIST_TYPE"
@@ -996,8 +1054,8 @@ is_file_ignored() {
         cat ".githooks/.ignore" >"$ALL_IGNORE_FILE"
         echo >>"$ALL_IGNORE_FILE"
     fi
-    if [ -f ".githooks/${HOOK_NAME}/.ignore" ]; then
-        cat ".githooks/${HOOK_NAME}/.ignore" >>"$ALL_IGNORE_FILE"
+    if [ -f ".githooks/${LIST_TYPE}/.ignore" ]; then
+        cat ".githooks/${LIST_TYPE}/.ignore" >>"$ALL_IGNORE_FILE"
         echo >>"$ALL_IGNORE_FILE"
     fi
 
@@ -1076,6 +1134,35 @@ get_hook_enabled_or_disabled_state() {
 }
 
 #####################################################
+# List the shared hooks from the
+#   ~/.githooks/shared directory.
+#
+# Returns the list of paths to the hook files
+#   in the shared hook repositories found locally.
+#####################################################
+list_hooks_in_shared_repos() {
+    if [ ! -d ~/.githooks/shared ]; then
+        return
+    fi
+
+    SHARED_LIST_TYPE="$1"
+
+    for SHARED_ROOT in ~/.githooks/shared/*; do
+        REMOTE_URL=$(cd "$SHARED_ROOT" && git config --get remote.origin.url)
+        ACTIVE_REPO=$(echo "$SHARED_REPOS_LIST" | grep -o "$REMOTE_URL")
+        if [ "$ACTIVE_REPO" != "$REMOTE_URL" ]; then
+            continue
+        fi
+
+        if [ -e "${SHARED_ROOT}/.githooks/${SHARED_LIST_TYPE}" ]; then
+            echo "${SHARED_ROOT}/.githooks/${SHARED_LIST_TYPE}"
+        elif [ -e "${SHARED_ROOT}/${LIST_TYPE}" ]; then
+            echo "${SHARED_ROOT}/${LIST_TYPE}"
+        fi
+    done
+}
+
+#####################################################
 # Updates the configured shared hook repositories.
 #
 # Returns:
@@ -1119,15 +1206,15 @@ update_shared_hooks_in() {
     "
 
     for SHARED_REPO in $SHARED_REPOS_LIST; do
-        mkdir -p ~/.githooks.shared
+        mkdir -p ~/.githooks/shared
 
         NORMALIZED_NAME=$(echo "$SHARED_REPO" |
             sed -E "s#.*[:/](.+/.+)\\.git#\\1#" |
             sed -E "s/[^a-zA-Z0-9]/_/g")
 
-        if [ -d ~/.githooks.shared/"$NORMALIZED_NAME"/.git ]; then
+        if [ -d ~/.githooks/shared/"$NORMALIZED_NAME"/.git ]; then
             echo "* Updating shared hooks from: $SHARED_REPO"
-            PULL_OUTPUT=$(cd ~/.githooks.shared/"$NORMALIZED_NAME" && git pull 2>&1)
+            PULL_OUTPUT=$(cd ~/.githooks/shared/"$NORMALIZED_NAME" && git pull 2>&1)
             # shellcheck disable=SC2181
             if [ $? -ne 0 ]; then
                 echo "! Update failed, git pull output:"
@@ -1135,7 +1222,7 @@ update_shared_hooks_in() {
             fi
         else
             echo "* Retrieving shared hooks from: $SHARED_REPO"
-            CLONE_OUTPUT=$(cd ~/.githooks.shared && git clone "$SHARED_REPO" "$NORMALIZED_NAME" 2>&1)
+            CLONE_OUTPUT=$(cd ~/.githooks/shared && git clone "$SHARED_REPO" "$NORMALIZED_NAME" 2>&1)
             # shellcheck disable=SC2181
             if [ $? -ne 0 ]; then
                 echo "! Clone failed, git clone output:"
@@ -1321,6 +1408,7 @@ print_current_version_number() {
 
     echo
     echo "Version: $CURRENT_VERSION"
+    echo
 }
 
 #####################################################
@@ -1790,7 +1878,7 @@ setup_hook_templates() {
 }
 
 ############################################################
-# Installs the command line helper tool at 
+# Installs the command line helper tool at
 #   ~/.githooks/bin/githooks and adds a Git alias for it.
 #
 # Returns:
