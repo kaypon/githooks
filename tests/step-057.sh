@@ -7,7 +7,7 @@ sh /var/lib/githooks/install.sh || exit 1
 mkdir -p /tmp/test057/.githooks/pre-commit &&
     echo 'echo "Hello"' >/tmp/test057/.githooks/pre-commit/first &&
     echo 'echo "Hello"' >/tmp/test057/.githooks/pre-commit/second &&
-    cd /tmp/test057/ &&
+    cd /tmp/test057 &&
     git init ||
     exit 1
 

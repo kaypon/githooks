@@ -21,7 +21,7 @@ BASE_TEMPLATE_CONTENT='#!/bin/sh
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.282358-9b98ab
+# Version: 1808.291001-502593
 
 #####################################################
 # Execute the current hook,
@@ -646,7 +646,7 @@ CLI_TOOL_CONTENT='#!/bin/sh
 # See the documentation in the project README for more information,
 #   or run the `git hooks help` command for available options.
 #
-# Version: 1808.282358-9b98ab
+# Version: 1808.291001-502593
 
 #####################################################
 # Prints the command line help for usage and

@@ -26,7 +26,7 @@ mkdir -p /tmp/test055/.githooks/pre-commit &&
     echo 'echo "Hello"' >/tmp/test055/.githooks/post-commit/local-post &&
     echo 'echo "Hello"' >/tmp/test055/.githooks/post-merge &&
     echo 'https://github.com/test/repo2.git' >/tmp/test055/.githooks/.shared &&
-    cd /tmp/test055/ &&
+    cd /tmp/test055 &&
     git init &&
     mkdir -p .git/hooks &&
     echo 'echo "Hello"' >.git/hooks/pre-commit.replaced.githook &&

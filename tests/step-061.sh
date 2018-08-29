@@ -16,7 +16,7 @@ git config --global githooks.shared '/tmp/shared/first-shared.git' || exit 1
 
 mkdir -p /tmp/test061/.githooks &&
     echo '/tmp/shared/second-shared.git' >/tmp/test061/.githooks/.shared &&
-    cd /tmp/test061/ &&
+    cd /tmp/test061 &&
     git init ||
     exit 1
 

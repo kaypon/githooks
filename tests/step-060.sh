@@ -8,7 +8,7 @@ mkdir -p /tmp/test060/.githooks/pre-commit &&
     echo 'echo "Hello"' >/tmp/test060/.githooks/pre-commit/first &&
     echo 'echo "Hello"' >/tmp/test060/.githooks/pre-commit/second &&
     touch /tmp/test060/.githooks/trust-all &&
-    cd /tmp/test060/ &&
+    cd /tmp/test060 &&
     git init &&
     git config --local githooks.trust.all Y ||
     exit 1

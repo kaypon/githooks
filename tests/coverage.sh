@@ -22,6 +22,8 @@ ADD tests/exec-steps.sh tests/step-* tests/replace-inline-content.py /var/lib/te
 RUN find /var/lib -name '*.sh' -exec sed -i 's|#!/bin/sh|#!/bin/bash|g' {} \\; && \\
     find /var/lib -name '*.sh' -exec sed -i 's|sh /|bash /|g' {} \\; && \\
     find /var/lib -name '*.sh' -exec sed -i 's|sh "|bash "|g' {} \\; && \\
+# Revert changed shell script filenames
+    find /var/lib -name '*.sh' -exec sed -E -i "s|/var/lib/githooks/([a-z-]+)\\.bash|/var/lib/githooks/\\1.sh|g" {} \\; && \\
 # Replace the inline content with loading the source file
     python /var/lib/tests/replace-inline-content.py /var/lib/githooks && \\
 # Change the base template so we can pass in the hook name and accept flags
