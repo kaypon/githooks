@@ -16,7 +16,7 @@ Either create a file with the [Git hook](https://github.com/rycus86/githooks#sup
 
 ### How can I see what hooks are active?
 
-You can look at the `.githooks` folder to see the local hooks in the repository, though if you have shared hook repositories defined, those will live under the `~/.githooks/shared` folder. The [command line helper](https://github.com/rycus86/githooks/blob/master/docs/command-line-tool.md) tool can list out all of them for you with `git hooks list`, and you can use it to accept or enable/disable new, changed or existing hooks.
+You can look at the `.githooks` folder to see the local hooks in the repository, though if you have shared hook repositories defined, those will live under the `~/.githooks/shared` folder. The [command line helper](https://github.com/rycus86/githooks/blob/master/docs/command-line-tool.md) tool can list out all of them for you with `git hooks list`, and you can use it to accept, enable or disable new, changed or existing hooks.
 
 ## More information
 

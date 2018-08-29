@@ -11,7 +11,7 @@
 # See the documentation in the project README for more information,
 #   or run the `git hooks help` command for available options.
 #
-# Version: 1808.292256-fdbc4e
+# Version: 1808.292316-b1191e
 
 #####################################################
 # Prints the command line help for usage and
@@ -236,7 +236,7 @@ git hooks accept [trigger] [hook-script]
 git hooks accept [hook-script]
 git hooks accept [trigger]
 
-    Accepts a new hook or changes to an existing hooks.
+    Accepts a new hook or changes to an existing hook.
     The \`trigger\` parameter should be the name of the Git event if given.
     The \`hook-script\` can be the name of the file to enable, or its
     relative path, or an absolute path, we will try to find it.
@@ -616,12 +616,24 @@ run_update_check() {
         print_help_header
         echo "
 git hooks update [force]
+git hooks update [enable|disable]
 
     Executes an update check for a newer Githooks version.
     If it finds one, or if \`force\` was given, the downloaded
     install script is executed for the latest version.
+    The \`enable\` and \`disable\` options enable or disable
+    the automatic checks that would normally run daily
+    after a successful commit event.
 "
         return
+    fi
+
+    if [ "$1" = "enable" ]; then
+        git config --global githooks.autoupdate.enabled Y && return
+        echo "! Failed to enable automatic updates" && exit 1
+    elif [ "$1" = "disable" ]; then
+        git config --global githooks.autoupdate.enabled N && return
+        echo "! Failed to disable automatic updates" && exit 1
     fi
 
     record_update_time

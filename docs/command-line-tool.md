@@ -9,9 +9,9 @@
 - [help](#git-hooks-help)
 - [version](#git-hooks-version)
 
-The `git hooks <cmd>` command line helper provides a convenience utility to manage Githooks configuration, hook files and other related functionality. The [cli.sh](../cli.sh) script should be an alias for `git hooks`, which is done automatically by the install script as `git config --global alias.hooks "!${SCRIPT_DIR}/githooks"`.
+The `git hooks <cmd>` command line helper provides a convenience utility to manage Githooks configuration, hook files and other related functionality. The [cli.sh](https://github.com/rycus86/githooks/blob/master/cli.sh) script should be an alias for `git hooks`, which is done automatically by the install script with the `git config --global alias.hooks "!${SCRIPT_DIR}/githooks"` command.
 
-See below for the list of available subcommands, or run `git hooks help` locally.
+See the list of available subcommands below, or run `git hooks help` locally.
 
 ## git hooks disable
 
@@ -23,7 +23,7 @@ $ git hooks disable [hook-script]
 $ git hooks disable [trigger]
 ```
 
-Disables a hook in the current repository. The `trigger` parameter should be the name of the Git event if given. The `hook-script` can be the name of the file to disable, or its relative path, or an absolute path, we will try to find it.
+Disables a hook in the current repository. The `trigger` parameter should be the name of the Git event if given. The `hook-script` can be the name of the file to disable, or its relative path, or an absolute path, we will try to find it. This command needs to be run at the root of a repository.
 
 ## git hooks enable
 
@@ -35,7 +35,7 @@ $ git hooks enable [hook-script]
 $ git hooks enable [trigger]
 ```
 
-Enables a hook or hooks in the current repository. The `trigger` parameter should be the name of the Git event if given. The `hook-script` can be the name of the file to enable, or its relative path, or an absolute path, we will try to find it.
+Enables a hook or hooks in the current repository. The `trigger` parameter should be the name of the Git event if given. The `hook-script` can be the name of the file to enable, or its relative path, or an absolute path, we will try to find it. This command needs to be run at the root of a repository.
 
 ## git hooks accept
 
@@ -47,7 +47,7 @@ $ git hooks accept [hook-script]
 $ git hooks accept [trigger]
 ```
 
-Accepts a new hook or changes to an existing hooks. The `trigger` parameter should be the name of the Git event if given. The `hook-script` can be the name of the file to enable, or its relative path, or an absolute path, we will try to find it.
+Accepts a new hook or changes to an existing hook. The `trigger` parameter should be the name of the Git event if given. The `hook-script` can be the name of the file to enable, or its relative path, or an absolute path, we will try to find it. This command needs to be run at the root of a repository.
 
 ## git hooks list
 
@@ -75,9 +75,10 @@ Performs an update check.
 
 ```shell
 $ git hooks update [force]
+$ git hooks update [enable|disable]
 ```
 
-Executes an update check for a newer Githooks version. If it finds one, or if `force` was given, the downloaded install script is executed for the latest version.
+Executes an update check for a newer Githooks version. If it finds one, or if `force` was given, the downloaded install script is executed for the latest version. The `enable` and `disable` options enable or disable the automatic checks that would normally run daily after a successful commit event.
 
 ## git hooks help
 
