@@ -98,6 +98,14 @@ $ git config --global githooks.disable Y
 
 Also, as mentioned above, all hook execution can be bypassed with a non-empty value in the `$GITHOOKS_DISABLE` environment variable.
 
+You can also selectively disable some or all of the hooks using the [command line helper](https://github.com/rycus86/githooks/blob/master/docs/command-line-tool.md) tool, and running `git hooks disable <hook>`. See the tool's documentation in the `docs/` folder to see the available options.
+
+## Command line helper
+
+Githooks will set up a Git alias for `git hooks <cmd>` for you, that enables you to print the names and state of the hooks in the current repository, and also manage them, along with some other functionality, like updating shared hook repositories, running a Githooks update, etc.
+
+> See the *cli* tool's documenation on its [docs page](docs/command-line-tool.md)!
+
 ## Installation
 
 The commands below fetch and execute the [install.sh](install.sh) script from this repository. It will:
@@ -147,10 +155,6 @@ $ sh -c "$(curl -fsSL https://raw.githubusercontent.com/rycus86/githooks/master/
 
 The GitHub URL also accepts the additional parameters mentioned above, the `https://r.viktoradam.net/githooks` URL is just a redirect to the longer GitHub address.
 
-### Command line helper
-
-> TODO section about the githooks cli tool
-
 ### Required tools
 
 Although most systems will usually have these tools (especially if you're using Git), I should mention that the project assumes the following programs to be available:
@@ -174,6 +178,8 @@ $ git config --global githooks.autoupdate.enabled Y
 $ git config --global githooks.autoupdate.enabled N
 $ git config --global --unset githooks.autoupdate.enabled
 ```
+
+You can also check for updates at any time by executing `git hooks update`, using the [command line helper](https://github.com/rycus86/githooks/blob/master/docs/command-line-tool.md) tool.
 
 ### Uninstalling
 

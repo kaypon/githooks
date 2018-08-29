@@ -21,7 +21,7 @@ BASE_TEMPLATE_CONTENT='#!/bin/sh
 # It allows you to have a .githooks folder per-project that contains
 # its hooks to execute on various Git triggers.
 #
-# Version: 1808.291001-502593
+# Version: 1808.291730-5f7bd9
 
 #####################################################
 # Execute the current hook,
@@ -646,7 +646,7 @@ CLI_TOOL_CONTENT='#!/bin/sh
 # See the documentation in the project README for more information,
 #   or run the `git hooks help` command for available options.
 #
-# Version: 1808.291001-502593
+# Version: 1808.291730-5f7bd9
 
 #####################################################
 # Prints the command line help for usage and
@@ -767,6 +767,10 @@ find_hook_path_to_enable_or_disable() {
     fi
 }
 
+#####################################################
+# Creates the Githooks checksum file
+#   for the repository if it does not exist yet.
+#####################################################
 ensure_checksum_file_exists() {
     touch .git/.githooks.checksum
 }
@@ -1478,6 +1482,10 @@ The [directories or files](https://github.com/rycus86/githooks#layout-and-option
 ### How do I add a new hook script?
 
 Either create a file with the [Git hook](https://github.com/rycus86/githooks#supported-hooks) name, or a directory (recommended) inside the `.githooks` folder, and place files with the individual steps that should be executed for that event inside. If the file is executable, it will be invoked directly, otherwise it is assumed to be a Shell script - unless this file matches one of the [ignore patterns](https://github.com/rycus86/githooks#ignoring-files) in the `.githooks` area.
+
+### How can I see what hooks are active?
+
+You can look at the `.githooks` folder to see the local hooks in the repository, though if you have shared hook repositories defined, those will live under the `~/.githooks/shared` folder. The [command line helper](https://github.com/rycus86/githooks/blob/master/docs/command-line-tool.md) tool can list out all of them for you with `git hooks list`, and you can use it to accept or enable/disable new, changed or existing hooks.
 
 ## More information
 

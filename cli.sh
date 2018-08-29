@@ -11,7 +11,7 @@
 # See the documentation in the project README for more information,
 #   or run the `git hooks help` command for available options.
 #
-# Version: 1808.291001-502593
+# Version: 1808.291730-5f7bd9
 
 #####################################################
 # Prints the command line help for usage and
@@ -132,6 +132,10 @@ find_hook_path_to_enable_or_disable() {
     fi
 }
 
+#####################################################
+# Creates the Githooks checksum file
+#   for the repository if it does not exist yet.
+#####################################################
 ensure_checksum_file_exists() {
     touch .git/.githooks.checksum
 }
